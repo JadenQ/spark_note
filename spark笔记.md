@@ -1,4 +1,4 @@
-p113 complex type - array
+p132 grouping
 
 ### Chapter 5 基本结构化操作
 
@@ -298,7 +298,78 @@ complexDF.select("complex.*")
 
 ###### 数组（Array）
 
+split(column, delimiter) 按照分隔符划分字符串
 
+size() 返回数组的长度
+
+array_contains(column, string) 数组中是否包含string
+
+explode(column) 针对由数组组成的一列，将数组中每一个元素分配出来展开，分别与其他列组合如下面的Description
+
+e.g.:memo:explode函数使用示例
+
+```python
+df.withColumn("splitted", split(col("Description"), " ")).withColumn("exploded", explode(col("splitted"))).select("Description", "InvoiceNo", "exploded").show(20)
++--------------------+---------+--------+
+|         Description|InvoiceNo|exploded|
++--------------------+---------+--------+
+|WHITE HANGING HEA...|   536365|   WHITE|
+|WHITE HANGING HEA...|   536365| HANGING|
+|WHITE HANGING HEA...|   536365|   HEART|
+|WHITE HANGING HEA...|   536365| T-LIGHT|
+|WHITE HANGING HEA...|   536365|  HOLDER|
+| WHITE METAL LANTERN|   536365|   WHITE|
+| WHITE METAL LANTERN|   536365|   METAL|
+| WHITE METAL LANTERN|   536365| LANTERN|
+|CREAM CUPID HEART...|   536365|   CREAM|
+|CREAM CUPID HEART...|   536365|   CUPID|
+|CREAM CUPID HEART...|   536365|  HEARTS|
+|CREAM CUPID HEART...|   536365|    COAT|
+|CREAM CUPID HEART...|   536365|  HANGER|
+|KNITTED UNION FLA...|   536365| KNITTED|
+|KNITTED UNION FLA...|   536365|   UNION|
+|KNITTED UNION FLA...|   536365|    FLAG|
+|KNITTED UNION FLA...|   536365|     HOT|
+|KNITTED UNION FLA...|   536365|   WATER|
+|KNITTED UNION FLA...|   536365|  BOTTLE|
+|RED WOOLLY HOTTIE...|   536365|     RED|
++--------------------+---------+--------+
+only showing top 20 rows
+```
+
+###### 映射（Maps）
+
+create_map(column1, column2) 创建列之间的键值对
+
+##### JSON类型
+
+get_json_object() 查询一个json对象
+
+json_tuple() 如果嵌套只有一层可以使用
+
+to_json() 可以将结构体类型转换为json字符串
+
+from_json() 将json字符串分词转换为结构体
+
+##### 自定义函数
+
+自定义的函数（user-difined function）需要注册，才能在所有工作机器上对列、sql使用；Spark会序列化这一函数到驱动上并且通过网路传输到所有的执行处理器。Java或Scala可以直接使用JVM，Python在序列化函数后还需要启动Python进程在每个机器中每一行输入数据，并由python一行行返回结果到JVM和Spark。
+
+JVM和Python会争夺工作内存资源，真正消耗资源比较多的地方在于将数据序列化进入Python进程的过程，计算量也很大。因此有worker崩溃的风险。所以自定义函数最好使用Java或者Scala书写。
+
+udf()函数将自定义函数注册到spark，之后可以在dataframe中使用；
+
+spark.udf.register("udfName", udf, DataType())
+
+为了规范和方便，最好规定返回值的类型，python与静态类型语言java,scala交互最好需要有的习惯。输入错误的DataType()不会报错而会返回null。
+
+注册后的函数在不同语言之间可以跨语言使用。
+
+令函数在Hive中暂时（TEMPORARY）使用需要声明一个依赖：
+
+```sql
+CREATE TEMPORARY FUNCTION myFunc AS 'com.organization.hive.udf.FunctionName'
+```
 
 #### 6.3 pyspark库
 
@@ -310,11 +381,57 @@ from pyspark.sql.functions import translate, regexp_replace 正则表达式工�
 
 from pyspark.sql.functions import current_date, current_timestamp, datediff, months_between, to_date 时间工具
 
+from pyspark.sql.functions import split, explode 数组工具
 
+### Chapter 7 聚合
 
+#### 7.1 概念
 
+分组（Grouping）：简单的分组就是使用聚合函数总结数据框。
 
+- group by：选定特定的一个或者多个列进行分组
+- window：对一个或多个数值列使用一个或多个聚合函数
+- grouping set：在不同水平上聚合，SQL中的primative，在DataFrame中为rollup和cubes。
+- rollup：垂直总结多个数值列的聚合
+- cube：在所有组合的行间总结
 
+#### 7.2 函数
+
+##### 聚合函数
+
+count() 输出记录数
+
+countDistinct() 输出不重复的记录数
+
+approx_count_distinct() 处理大数据的精准度可以降低以提高速度
+
+first(), last() 数据框中第一个、最后一个记录
+
+min(), max() 最大值、最小值
+
+sum() 求和
+
+sumDistinct() 对不重复记录求和
+
+avg() 返回平均值
+
+var_pop(), stddev_pop 总体的方差与标准差
+
+var_samp(), stddev_samp() 样本的方差与标准差
+
+skewness() 偏度
+
+kurtosis() 峰度
+
+corr() 皮尔森系数
+
+covar_pop(), covar_samp() 总体的协方差和样本的协方差
+
+collect_set(), collect_list() 将某列聚合成一个集或者一个列表
+
+agg() 聚合两个元素
+
+##### 分组函数
 
 
 
